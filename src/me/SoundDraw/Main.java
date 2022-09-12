@@ -1,28 +1,20 @@
 package me.SoundDraw;
 
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.EventQueue;
 import java.awt.Toolkit;
 import java.util.Locale;
 
 import javax.sound.sampled.LineUnavailableException;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import java.awt.BorderLayout;
-import javax.swing.JSlider;
-import javax.swing.UIManager;
-import javax.swing.JLabel;
-import javax.swing.GroupLayout;
-import javax.swing.GroupLayout.Alignment;
-import java.awt.FlowLayout;
-import javax.swing.border.LineBorder;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-
-import java.awt.Color;
-import javax.swing.SpringLayout;
-import javax.swing.BoxLayout;
-import java.awt.Component;
 import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSlider;
+import javax.swing.SpringLayout;
+import javax.swing.UIManager;
 
 public class Main {
 
@@ -115,8 +107,8 @@ public class Main {
 		sliderLength.setMaximum(SAMPLE_RATE / 100 * 2);
 		sliderLength.setBackground(Color.DARK_GRAY);
 		sliderLength.setSnapToTicks(true);
-		sliderLength.setValue(22);
-		sliderLength.setMinimum(22);
+		sliderLength.setValue(5);
+		sliderLength.setMinimum(5);
 		panelLength.add(sliderLength);
 		sliderLength.setFocusable(false);
 		sliderLength.addChangeListener(e -> {

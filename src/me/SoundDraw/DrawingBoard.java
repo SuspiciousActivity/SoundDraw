@@ -1,12 +1,14 @@
 package me.SoundDraw;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.util.Arrays;
 
 import javax.swing.JPanel;
@@ -20,14 +22,20 @@ public class DrawingBoard extends JPanel {
 	private byte[] data = new byte[DEFAULT_SIZE];
 	private int lastEditedSize = DEFAULT_SIZE;
 
-	private boolean drawing = false;
+	private EnumMouseDrag mouseDrag = EnumMouseDrag.NONE;
 	private Point lastPos;
 
+	private int centerOff = 0;
+	private int movingCenterOff = 0;
+	private int zoom = 1;
+
 	public DrawingBoard() {
+		setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 		setBackground(Color.black);
 		MouseListener listener = new MouseListener();
 		addMouseListener(listener);
 		addMouseMotionListener(listener);
+		addMouseWheelListener(listener);
 		addComponentListener(new ComponentAdapter() {
 			@Override
 			public void componentResized(ComponentEvent e) {
@@ -72,51 +80,99 @@ public class DrawingBoard extends JPanel {
 		g.setColor(Color.darkGray);
 		g.drawLine(0, height / 2, width, height / 2);
 
-		g.setColor(Color.white);
-		for (int i = 0; i < data.length - 1; i++) {
-			g.drawLine(i * width / data.length, (data[i] + 128) * height / 256, (i + 1) * width / data.length,
-					(data[i + 1] + 128) * height / 256);
+		int start = 0;
+
+		int length = data.length / zoom;
+		if (zoom != 1) {
+			int mid = data.length / 2 + getCenterOffset();
+			start = mid - length / 2;
 		}
+
+		g.setColor(Color.white);
+		for (int i = 0; i < length - 1; i++) {
+			g.drawLine(i * width / length, (data[start + i] + 128) * height / 256, (i + 1) * width / length,
+					(data[start + i + 1] + 128) * height / 256);
+		}
+	}
+
+	private int getCenterOffset() {
+		return centerOff + movingCenterOff;
+	}
+
+	private enum EnumMouseDrag {
+		NONE, DRAW, MOVE;
 	}
 
 	private class MouseListener extends MouseAdapter {
 		@Override
 		public void mousePressed(MouseEvent e) {
-			if (e.getButton() != MouseEvent.BUTTON1)
-				return;
-			drawing = true;
-			lastPos = e.getPoint();
-			firePaint(e.getPoint());
-			e.consume();
+			switch (e.getButton()) {
+			case MouseEvent.BUTTON1:
+				mouseDrag = EnumMouseDrag.DRAW;
+				lastPos = e.getPoint();
+				firePaint(e.getPoint());
+				e.consume();
+				break;
+			case MouseEvent.BUTTON3:
+				mouseDrag = EnumMouseDrag.MOVE;
+				lastPos = e.getPoint();
+				e.consume();
+				break;
+			}
 		}
 
 		@Override
 		public void mouseReleased(MouseEvent e) {
-			if (e.getButton() != MouseEvent.BUTTON1)
-				return;
-			firePaint(e.getPoint());
-			drawing = false;
-			lastPos = null;
-			e.consume();
+			switch (e.getButton()) {
+			case MouseEvent.BUTTON1:
+				firePaint(e.getPoint());
+				mouseDrag = EnumMouseDrag.NONE;
+				lastPos = null;
+				e.consume();
+				break;
+			case MouseEvent.BUTTON3:
+				fireMove(e.getPoint());
+				mouseDrag = EnumMouseDrag.NONE;
+				lastPos = null;
+				centerOff += movingCenterOff;
+				movingCenterOff = 0;
+				e.consume();
+				break;
+			}
 		}
 
 		@Override
 		public void mouseDragged(MouseEvent e) {
-			if (!drawing)
+			switch (mouseDrag) {
+			case DRAW:
+				firePaint(e.getPoint());
+				e.consume();
+				break;
+			case MOVE:
+				fireMove(e.getPoint());
+				e.consume();
+				break;
+			default:
+				break;
+			}
+		}
+
+		@Override
+		public void mouseWheelMoved(MouseWheelEvent e) {
+			if (mouseDrag != EnumMouseDrag.NONE)
 				return;
-			firePaint(e.getPoint());
-			e.consume();
+			fireZoom(e.getPoint(), (int) Math.signum(e.getPreciseWheelRotation()));
 		}
 
 		private void firePaint(Point pos) {
-			if (!drawing)
+			if (mouseDrag != EnumMouseDrag.DRAW)
 				return;
 			lastEditedSize = data.length;
 
 			int width = getWidth();
 			int height = getHeight();
-			int stepHalfX = width / data.length / 2;
-			int stepHalfY = height / 256 / 2;
+			float stepHalfX = (float) width / data.length * zoom / 2;
+			float stepHalfY = (float) height / 256 / 2;
 
 			if (pos.y < 0)
 				pos.y = 0;
@@ -130,8 +186,16 @@ public class DrawingBoard extends JPanel {
 				Point pLow = pos.x < lastPos.x ? pos : lastPos;
 				Point pHigh = pos.x < lastPos.x ? lastPos : pos;
 
-				int lastIdx = (pLow.x + stepHalfX) * data.length / width;
-				int newIdx = (pHigh.x + stepHalfX) * data.length / width;
+				int start = 0;
+
+				int length = data.length / zoom;
+				if (zoom != 1) {
+					int mid = data.length / 2 + getCenterOffset();
+					start = mid - length / 2;
+				}
+
+				int lastIdx = (int) ((pLow.x + stepHalfX) * data.length / zoom / width + start);
+				int newIdx = (int) ((pHigh.x + stepHalfX) * data.length / zoom / width + start);
 				int lastVal = pLow.y;
 				int newVal = pHigh.y;
 				int diffIdx = newIdx - lastIdx + 1;
@@ -149,6 +213,60 @@ public class DrawingBoard extends JPanel {
 			} finally {
 				lastPos = pos;
 			}
+		}
+
+		private void fireMove(Point pos) {
+			if (mouseDrag != EnumMouseDrag.MOVE)
+				return;
+
+			int width = getWidth();
+
+			int newOff = (int) ((float) (lastPos.x - pos.x) / zoom / ((float) width / data.length));
+
+			int half = data.length / 2;
+			int lowerBound = half / zoom - half - centerOff;
+			int higherBound = data.length - half / zoom - half - centerOff;
+
+			if (newOff < lowerBound) {
+				newOff = lowerBound;
+			} else if (newOff > higherBound) {
+				newOff = higherBound;
+			}
+
+			movingCenterOff = newOff;
+
+			repaint();
+		}
+
+		private void fireZoom(Point pos, int wheel) {
+			int width = getWidth();
+
+			int oldZoom = zoom;
+
+			if (wheel < 0) {
+				zoom = Math.min(zoom + 1, 32);
+			} else if (wheel > 0) {
+				zoom = Math.max(zoom - 1, 1);
+			}
+
+			if (oldZoom == zoom)
+				return;
+
+			int pseudoMoveOff = (int) ((float) (pos.x - width / 2) / oldZoom / zoom / ((float) width / data.length));
+			centerOff += wheel < 0 ? pseudoMoveOff : -pseudoMoveOff;
+
+			int half = data.length / 2;
+			int lowerBound = half / zoom - half - centerOff;
+			int higherBound = data.length - half / zoom - half - centerOff;
+
+			int newOff = 0;
+			if (lowerBound > 0) {
+				centerOff += lowerBound;
+			} else if (higherBound < 0) {
+				centerOff += higherBound;
+			}
+
+			repaint();
 		}
 	}
 
