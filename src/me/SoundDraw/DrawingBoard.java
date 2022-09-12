@@ -17,16 +17,15 @@ public class DrawingBoard extends JPanel {
 	private static final int STEP = 100;
 	private static final int DEFAULT_SIZE = STEP * 5;
 
-	private final MouseListener listener;
 	private byte[] data = new byte[DEFAULT_SIZE];
 	private int lastEditedSize = DEFAULT_SIZE;
 
-	private boolean down = false;
+	private boolean drawing = false;
 	private Point lastPos;
 
 	public DrawingBoard() {
-		listener = new MouseListener();
 		setBackground(Color.black);
+		MouseListener listener = new MouseListener();
 		addMouseListener(listener);
 		addMouseMotionListener(listener);
 		addComponentListener(new ComponentAdapter() {
@@ -83,7 +82,9 @@ public class DrawingBoard extends JPanel {
 	private class MouseListener extends MouseAdapter {
 		@Override
 		public void mousePressed(MouseEvent e) {
-			down = true;
+			if (e.getButton() != MouseEvent.BUTTON1)
+				return;
+			drawing = true;
 			lastPos = e.getPoint();
 			firePaint(e.getPoint());
 			e.consume();
@@ -91,20 +92,24 @@ public class DrawingBoard extends JPanel {
 
 		@Override
 		public void mouseReleased(MouseEvent e) {
+			if (e.getButton() != MouseEvent.BUTTON1)
+				return;
 			firePaint(e.getPoint());
-			down = false;
+			drawing = false;
 			lastPos = null;
 			e.consume();
 		}
 
 		@Override
 		public void mouseDragged(MouseEvent e) {
+			if (!drawing)
+				return;
 			firePaint(e.getPoint());
 			e.consume();
 		}
 
 		private void firePaint(Point pos) {
-			if (!down)
+			if (!drawing)
 				return;
 			lastEditedSize = data.length;
 
