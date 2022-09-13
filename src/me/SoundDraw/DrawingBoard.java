@@ -219,13 +219,13 @@ public class DrawingBoard extends JPanel {
 			if (mouseDrag != EnumMouseDrag.MOVE)
 				return;
 
-			int width = getWidth();
+			float width = getWidth();
 
-			int newOff = (int) ((float) (lastPos.x - pos.x) / zoom / ((float) width / data.length));
+			int newOff = (int) ((float) (lastPos.x - pos.x) / zoom / (width / data.length));
 
-			int half = data.length / 2;
-			int lowerBound = half / zoom - half - centerOff;
-			int higherBound = data.length - half / zoom - half - centerOff;
+			float half = data.length / 2f;
+			int lowerBound = (int) Math.ceil(half / zoom - half - centerOff);
+			int higherBound = (int) Math.floor(data.length - half / zoom - half - centerOff);
 
 			if (newOff < lowerBound) {
 				newOff = lowerBound;
@@ -239,7 +239,7 @@ public class DrawingBoard extends JPanel {
 		}
 
 		private void fireZoom(Point pos, int wheel) {
-			int width = getWidth();
+			float width = getWidth();
 
 			int oldZoom = zoom;
 
@@ -252,14 +252,13 @@ public class DrawingBoard extends JPanel {
 			if (oldZoom == zoom)
 				return;
 
-			int pseudoMoveOff = (int) ((float) (pos.x - width / 2) / oldZoom / zoom / ((float) width / data.length));
+			int pseudoMoveOff = (int) ((float) (pos.x - width / 2) / oldZoom / zoom / (width / data.length));
 			centerOff += wheel < 0 ? pseudoMoveOff : -pseudoMoveOff;
 
-			int half = data.length / 2;
-			int lowerBound = half / zoom - half - centerOff;
-			int higherBound = data.length - half / zoom - half - centerOff;
+			float half = data.length / 2f;
+			int lowerBound = (int) Math.ceil(half / zoom - half - centerOff);
+			int higherBound = (int) Math.floor(data.length - half / zoom - half - centerOff);
 
-			int newOff = 0;
 			if (lowerBound > 0) {
 				centerOff += lowerBound;
 			} else if (higherBound < 0) {
